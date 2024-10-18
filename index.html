@@ -20,8 +20,46 @@
       height: 100vh;
       margin: 0;
       overflow: hidden;
-      color: #FFD700;
+      color: #FFFFFF;
       text-shadow: 2px 2px 4px #000000;
+      position: relative;
+      transition: background-image 0.5s ease;
+    }
+
+    .background-image {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      transition: opacity 0.5s ease;
+    }
+
+    .mr-p {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background-image: url('https://i.ibb.co/dKHLSS3/mrp.webp');
+      background-size: contain;
+      background-repeat: no-repeat;
+      z-index: 10;
+      cursor: pointer;
+    }
+
+    @keyframes fall {
+      0% {
+        transform: translateY(-100vh) rotate(0deg);
+      }
+
+      100% {
+        transform: translateY(100vh) rotate(360deg);
+      }
+    }
+
+    .falling {
+      position: absolute;
+      animation: fall 3s linear;
     }
 
     #countdown {
@@ -30,15 +68,23 @@
       background-color: rgba(0, 0, 0, 0.7);
       padding: 20px;
       border-radius: 20px;
-      box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+      box-shadow: 0 0 20px rgba(0, 0, 255, 0.5);
       width: 800px;
       text-align: center;
+      border: 3px solid blue;
     }
 
     .instrument {
       position: absolute;
       width: 100px;
       height: auto;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+
+    .instrument:hover {
+      transform: scale(1.1);
+      cursor: pointer;
     }
 
     #trumpet {
@@ -68,14 +114,31 @@
       font-size: 24px;
       padding: 10px;
       background-color: rgba(0, 0, 0, 0.7);
-      color: #FFD700;
-      border: 2px solid #FFD700;
+      color: #FFFFFF;
+      border: 2px solid #FFFFFF;
       border-radius: 10px;
       cursor: pointer;
     }
 
     button:hover {
-      background-color: rgba(255, 215, 0, 0.3);
+      background-color: rgba(255, 255, 255, 0.3);
+    }
+
+    #millisecondBtn {
+      margin-top: 20px;
+      font-size: 28px;
+      padding: 15px 30px;
+      background-color: #4B0082;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 15px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    #millisecondBtn:hover {
+      background-color: #8A2BE2;
+      transform: scale(1.05);
     }
   </style>
 </head>
@@ -102,10 +165,18 @@
     </select>
     <button id="setAlarmBtn">Set Alarm</button>
   </div>
+  <button id="millisecondBtn">Toggle Milliseconds</button>
   <audio id="alarmSound" src="https://soundbible.com/grab.php?id=1542&amp;type=mp3"></audio>
+  <audio id="fiveMinuteWarning" src="https://texttospeech.responsivevoice.org/v1/text:synthesize?text=Five%20Minutes%20Left:%20Pack%20Up&amp;lang=en-US&amp;engine=g1&amp;name=&amp;pitch=0.5&amp;rate=0.5&amp;volume=1&amp;key=0POmS5Y2&amp;gender=male"></audio>
+  <audio id="backgroundMusic" src="https://www.youtube.com/watch?v=rRAADLp1Xig" loop=""></audio>
+  <div class="background-image" id="defaultBackground"></div>
+  <div class="background-image" id="trumpetBackground"></div>
+  <div class="background-image" id="clarinetBackground"></div>
+  <div class="background-image" id="saxophoneBackground"></div>
   <img id="trumpet" class="instrument" src="https://static.vecteezy.com/system/resources/previews/026/844/930/non_2x/trumpet-musical-instrument-clipart-on-transparent-background-acoustic-brass-musical-instruments-classical-and-jazz-musical-instrument-marching-bands-musical-instrument-clipart-free-png.png" alt="Trumpet">
   <img id="clarinet" class="instrument" src="https://jpmusicalinstruments.com/cdn/shop/files/101878_full_8875577f-4fea-4c10-81bd-446bc1f2e363_800x.png?v=1712136293" alt="Clarinet">
   <img id="saxophone" class="instrument" src="https://png.pngtree.com/png-vector/20230904/ourmid/pngtree-saxophone-isolated-on-white-music-png-image_9980860.png" alt="Saxophone">
+  <div id="mrPContainer"></div>
   <script>
     (function() {
       const GG_ALL_GAME_CONFIG = {
@@ -147,13 +218,23 @@
           'F,5,7': '11:04',
           'F,4,8': '11:48',
           'F,5,8': '12:30'
-        }
+        },
+        showMilliseconds: false, // Configuration for millisecond display
+        mrPCount: 10, // Number of Mr. P images to add
+        defaultBackground: 'https://static.vecteezy.com/system/resources/previews/007/935/202/non_2x/seamless-pattern-background-for-theme-music-vector.jpg',
+        mrPBackground: 'https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/44e17524-ab27-474d-b487-738e8ff66a0a/de4glfi-8d5a325a-4470-4908-86cc-ed8a43a152aa.jpg?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiJcL2ZcLzQ0ZTE3NTI0LWFiMjctNDc0ZC1iNDg3LTczOGU4ZmY2NmEwYVwvZGU0Z2xmaS04ZDVhMzI1YS00NDcwLTQ5MDgtODZjYy1lZDhhNDNhMTUyYWEuanBnIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.symnArKL89mFbGgfHk-VYx24WHvKnZlUw98vVL5Zsws',
+        trumpetBackground: 'https://wallpapers.com/images/hd/trumpet-background-cpmuj4aarange9p8.jpg',
+        clarinetBackground: 'https://t3.ftcdn.net/jpg/05/68/45/90/360_F_568459025_q2mhyVG1HnocQJ3vQxGXd6P1dPQdpSMc.jpg',
+        saxophoneBackground: 'https://t4.ftcdn.net/jpg/05/70/82/93/360_F_570829339_87RUOoZkWiuPZHYqVZ1RfA91iZNS6WVs.jpg'
       };
       let countdownInterval;
       let alarmTime;
+      let fiveMinuteWarningPlayed = false;
+      let backgroundMusic = document.getElementById('backgroundMusic');
 
       function startCountdown() {
         clearInterval(countdownInterval);
+        fiveMinuteWarningPlayed = false;
         countdownInterval = setInterval(() => {
           const now = new Date();
           const timeLeft = alarmTime - now;
@@ -162,14 +243,22 @@
             const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
             const secondsLeft = Math.floor((timeLeft % (1000 * 60)) / 1000);
             const millisecondsLeft = Math.floor((timeLeft % 1000));
-            document.getElementById('countdown').textContent =
-              `${hoursLeft.toString().padStart(2, '0')}:${minutesLeft.toString().padStart(2, '0')}:${secondsLeft.toString().padStart(2, '0')}:${millisecondsLeft.toString().padStart(3, '0')}`;
+            const countdownElement = document.getElementById('countdown');
+            countdownElement.textContent = `${hoursLeft.toString().padStart(2, '0')}:${minutesLeft.toString().padStart(2, '0')}:${secondsLeft.toString().padStart(2, '0')}`;
+            if (GG_ALL_GAME_CONFIG.showMilliseconds) {
+              countdownElement.textContent += `:${millisecondsLeft.toString().padStart(3, '0')}`;
+            }
+            // Check for 5-minute mark
+            if (minutesLeft === 5 && secondsLeft === 0 && !fiveMinuteWarningPlayed) {
+              document.getElementById('fiveMinuteWarning').play();
+              fiveMinuteWarningPlayed = true;
+            }
           } else {
             clearInterval(countdownInterval);
-            document.getElementById('countdown').textContent = "00:00:00:000";
+            document.getElementById('countdown').textContent = GG_ALL_GAME_CONFIG.showMilliseconds ? "00:00:00:000" : "00:00:00";
             document.getElementById('alarmSound').play();
           }
-        }, 10);
+        }, 10); // Always update every 10ms for smooth transitions
       }
 
       function setAlarm() {
@@ -190,7 +279,89 @@
           alert('Invalid time combination');
         }
       }
+
+      function toggleMilliseconds() {
+        GG_ALL_GAME_CONFIG.showMilliseconds = !GG_ALL_GAME_CONFIG.showMilliseconds;
+        document.getElementById('millisecondBtn').textContent = GG_ALL_GAME_CONFIG.showMilliseconds ? "Hide Milliseconds" : "Show Milliseconds";
+        if (alarmTime) {
+          startCountdown();
+        } else {
+          document.getElementById('countdown').textContent = GG_ALL_GAME_CONFIG.showMilliseconds ? "00:00:00:000" : "00:00:00";
+        }
+      }
       document.getElementById('setAlarmBtn').addEventListener('click', setAlarm);
+      document.getElementById('millisecondBtn').addEventListener('click', toggleMilliseconds);
+      // Add Mr. P images
+      const mrPContainer = document.getElementById('mrPContainer');
+      for (let i = 0; i < GG_ALL_GAME_CONFIG.mrPCount; i++) {
+        const mrP = document.createElement('div');
+        mrP.className = 'mr-p';
+        mrP.style.left = `${Math.random() * 100}vw`;
+        mrP.style.top = `${Math.random() * 100}vh`;
+        mrPContainer.appendChild(mrP);
+        adjustPosition(mrP);
+        mrP.addEventListener('click', toggleBackground);
+      }
+      let isDefaultBackground = true;
+
+      function toggleBackground() {
+        const body = document.body;
+        if (isDefaultBackground) {
+          body.style.backgroundImage = `url('${GG_ALL_GAME_CONFIG.mrPBackground}')`;
+          backgroundMusic.play();
+        } else {
+          body.style.backgroundImage = `url('${GG_ALL_GAME_CONFIG.defaultBackground}')`;
+          backgroundMusic.pause();
+          backgroundMusic.currentTime = 0;
+        }
+        isDefaultBackground = !isDefaultBackground;
+      }
+      // Function to check overlap and adjust position
+      function adjustPosition(element) {
+        const rect = element.getBoundingClientRect();
+        const controls = document.getElementById('controls').getBoundingClientRect();
+        const countdown = document.getElementById('countdown').getBoundingClientRect();
+        const millisecondBtn = document.getElementById('millisecondBtn').getBoundingClientRect();
+        if (
+          (rect.right > controls.left && rect.left < controls.right && rect.bottom > controls.top && rect.top < controls.bottom) ||
+          (rect.right > countdown.left && rect.left < countdown.right && rect.bottom > countdown.top && rect.top < countdown.bottom) ||
+          (rect.right > millisecondBtn.left && rect.left < millisecondBtn.right && rect.bottom > millisecondBtn.top && rect.top < millisecondBtn.bottom)
+        ) {
+          element.style.left = `${Math.random() * (window.innerWidth - rect.width)}px`;
+          element.style.top = `${Math.random() * (window.innerHeight - rect.height)}px`;
+          adjustPosition(element);
+        }
+      }
+      // Initialize background images
+      document.getElementById('defaultBackground').style.backgroundImage = `url('${GG_ALL_GAME_CONFIG.defaultBackground}')`;
+      document.getElementById('trumpetBackground').style.backgroundImage = `url('${GG_ALL_GAME_CONFIG.trumpetBackground}')`;
+      document.getElementById('clarinetBackground').style.backgroundImage = `url('${GG_ALL_GAME_CONFIG.clarinetBackground}')`;
+      document.getElementById('saxophoneBackground').style.backgroundImage = `url('${GG_ALL_GAME_CONFIG.saxophoneBackground}')`;
+      // Function to change background
+      function changeBackground(instrumentId) {
+        const backgrounds = document.querySelectorAll('.background-image');
+        backgrounds.forEach(bg => {
+          bg.style.opacity = '0';
+        });
+        document.getElementById(`${instrumentId}Background`).style.opacity = '1';
+      }
+      // Make instruments clickable
+      const instruments = document.querySelectorAll('.instrument');
+      instruments.forEach(instrument => {
+        instrument.addEventListener('click', () => {
+          const fallingInstrument = instrument.cloneNode(true);
+          fallingInstrument.classList.add('falling');
+          fallingInstrument.style.left = `${Math.random() * 100}vw`;
+          document.body.appendChild(fallingInstrument);
+          setTimeout(() => {
+            fallingInstrument.remove();
+          }, 3000);
+          // Change background based on the clicked instrument
+          changeBackground(instrument.id);
+        });
+      });
+      // Set default background
+      changeBackground('default');
       // Save game state
       function saveGame(gameState) {
         const saveGameEvent = {
