@@ -8,6 +8,90 @@
   <title>Mr P, we're done band</title>
   <link href="https://fonts.googleapis.com/css2?family=Bangers&amp;display=swap" rel="stylesheet">
   <style>
+    /* ... existing styles ... */
+    #popupButton {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 1000;
+    }
+
+    #popup {
+      display: none;
+      position: fixed;
+      bottom: 60px;
+      right: 10px;
+      background-color: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 1000;
+    }
+
+    #popup button {
+      display: block;
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #sheetMusicContainer {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 1000;
+    }
+
+    #sheetMusic {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .measure {
+      display: flex;
+      justify-content: space-between;
+      width: 200px;
+      height: 100px;
+      border: 1px solid black;
+    }
+
+    .note {
+      width: 20px;
+      height: 20px;
+      background-color: black;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    #playButton {
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
     body {
       font-family: 'Bangers', cursive;
       background-image: url('https://static.vecteezy.com/system/resources/previews/007/935/202/non_2x/seamless-pattern-background-for-theme-music-vector.jpg');
@@ -144,6 +228,11 @@
 </head>
 
 <body>
+  <!-- ... existing body content ... -->
+  <div id="sheetMusicContainer">
+    <div id="sheetMusic"></div>
+    <button id="playButton">Play</button>
+  </div>
   <div id="countdown">00:00:00:000</div>
   <div id="controls">
     <select id="daySelect">
@@ -177,9 +266,19 @@
   <img id="clarinet" class="instrument" src="https://jpmusicalinstruments.com/cdn/shop/files/101878_full_8875577f-4fea-4c10-81bd-446bc1f2e363_800x.png?v=1712136293" alt="Clarinet">
   <img id="saxophone" class="instrument" src="https://png.pngtree.com/png-vector/20230904/ourmid/pngtree-saxophone-isolated-on-white-music-png-image_9980860.png" alt="Saxophone">
   <div id="mrPContainer"></div>
+  <button id="popupButton">↑</button>
+  <div id="popup">
+    <div id="weddingCountdown"></div>
+    <button id="weddingDayBtn">Wedding Day</button>
+    <button id="activityBlockBtn">Activity Block</button>
+  </div>
   <script>
     (function() {
       const GG_ALL_GAME_CONFIG = {
+        weddingDate: new Date('August 10, 2025 00:00:00').getTime(),
+        // ... existing config ...
+        measureCount: 5, // number of measures in the sheet music
+        notePositions: ['C', 'D', 'E', 'F', 'G', 'A', 'B'], // possible note positions
         alarmTimes: {
           // Day, Period, Grade: Time
           'A,4,6': '8:58',
@@ -239,14 +338,19 @@
           const now = new Date();
           const timeLeft = alarmTime - now;
           if (timeLeft > 0) {
-            const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+            const daysLeft = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+            const hoursLeft = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
             const secondsLeft = Math.floor((timeLeft % (1000 * 60)) / 1000);
             const millisecondsLeft = Math.floor((timeLeft % 1000));
             const countdownElement = document.getElementById('countdown');
-            countdownElement.textContent = `${hoursLeft.toString().padStart(2, '0')}:${minutesLeft.toString().padStart(2, '0')}:${secondsLeft.toString().padStart(2, '0')}`;
-            if (GG_ALL_GAME_CONFIG.showMilliseconds) {
-              countdownElement.textContent += `:${millisecondsLeft.toString().padStart(3, '0')}`;
+            if (daysLeft > 0) {
+              countdownElement.textContent = `${daysLeft}d ${hoursLeft.toString().padStart(2, '0')}:${minutesLeft.toString().padStart(2, '0')}:${secondsLeft.toString().padStart(2, '0')}`;
+            } else {
+              countdownElement.textContent = `${hoursLeft.toString().padStart(2, '0')}:${minutesLeft.toString().padStart(2, '0')}:${secondsLeft.toString().padStart(2, '0')}`;
+              if (GG_ALL_GAME_CONFIG.showMilliseconds) {
+                countdownElement.textContent += `:${millisecondsLeft.toString().padStart(3, '0')}`;
+              }
             }
             // Check for 5-minute mark
             if (minutesLeft === 5 && secondsLeft === 0 && !fiveMinuteWarningPlayed) {
@@ -276,7 +380,8 @@
           }
           startCountdown();
         } else {
-          alert('Invalid time combination');
+          // If invalid combination, set to 3:00 PM
+          setAlarmTo3PM();
         }
       }
 
@@ -339,12 +444,15 @@
       document.getElementById('saxophoneBackground').style.backgroundImage = `url('${GG_ALL_GAME_CONFIG.saxophoneBackground}')`;
       // Function to change background
       function changeBackground(instrumentId) {
-        const backgrounds = document.querySelectorAll('.background-image');
-        backgrounds.forEach(bg => {
-          bg.style.opacity = '0';
-        });
-        document.getElementById(`${instrumentId}Background`).style.opacity = '1';
+        if (instrumentId !== 'saxophone') {
+          const backgrounds = document.querySelectorAll('.background-image');
+          backgrounds.forEach(bg => {
+            bg.style.opacity = '0';
+          });
+          document.getElementById(`${instrumentId}Background`).style.opacity = '1';
+        }
       }
+      // ... existing code ...
       // Make instruments clickable
       const instruments = document.querySelectorAll('.instrument');
       instruments.forEach(instrument => {
@@ -358,10 +466,136 @@
           }, 3000);
           // Change background based on the clicked instrument
           changeBackground(instrument.id);
+          // Set alarm to 3:00 PM
+          setAlarmTo3PM();
+          // Show sheet music if saxophone is clicked
+          if (instrument.id === 'saxophone') {
+            showSheetMusic();
+          }
         });
+      });
+      // Sheet music functionality
+      const sheetMusicContainer = document.getElementById('sheetMusicContainer');
+      const sheetMusic = document.getElementById('sheetMusic');
+      const playButton = document.getElementById('playButton');
+      let currentNotes = [];
+
+      function showSheetMusic() {
+        sheetMusicContainer.style.display = 'block';
+        sheetMusic.innerHTML = '';
+        currentNotes = [];
+        for (let i = 0; i < GG_ALL_GAME_CONFIG.measureCount; i++) {
+          const measure = document.createElement('div');
+          measure.className = 'measure';
+          for (let j = 0; j < GG_ALL_GAME_CONFIG.notePositions.length; j++) {
+            const noteSlot = document.createElement('div');
+            noteSlot.className = 'note-slot';
+            noteSlot.addEventListener('click', () => toggleNote(i, j));
+            measure.appendChild(noteSlot);
+          }
+          sheetMusic.appendChild(measure);
+          currentNotes.push(new Array(GG_ALL_GAME_CONFIG.notePositions.length).fill(false));
+        }
+      }
+
+      function toggleNote(measure, position) {
+        const noteSlot = sheetMusic.children[measure].children[position];
+        currentNotes[measure][position] = !currentNotes[measure][position];
+        noteSlot.innerHTML = currentNotes[measure][position] ? '<div class="note"></div>' : '';
+      }
+
+      function playNotes() {
+        const audioContext = new(window.AudioContext || window.webkitAudioContext)();
+        const now = audioContext.currentTime;
+        currentNotes.forEach((measure, measureIndex) => {
+          measure.forEach((isNoteOn, noteIndex) => {
+            if (isNoteOn) {
+              const oscillator = audioContext.createOscillator();
+              oscillator.type = 'sine';
+              oscillator.frequency.setValueAtTime(getNoteFrequency(noteIndex), now + measureIndex * 0.5);
+              oscillator.connect(audioContext.destination);
+              oscillator.start(now + measureIndex * 0.5);
+              oscillator.stop(now + measureIndex * 0.5 + 0.25);
+            }
+          });
+        });
+      }
+
+      function getNoteFrequency(noteIndex) {
+        const baseFrequency = 261.63; // C4
+        return baseFrequency * Math.pow(2, noteIndex / 12);
+      }
+      playButton.addEventListener('click', playNotes);
+      document.addEventListener('keydown', (event) => {
+        if (event.code === 'Space' && sheetMusicContainer.style.display === 'block') {
+          event.preventDefault();
+          playNotes();
+        }
+      });
+      // ... rest of the existing code ...
+      let isWeddingCountdown = false;
+
+      function setAlarmTo3PM() {
+        const now = new Date();
+        alarmTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 0, 0);
+        if (alarmTime <= now) {
+          alarmTime.setDate(alarmTime.getDate() + 1);
+        }
+        startCountdown();
+        document.getElementById('daySelect').value = 'A';
+        document.getElementById('periodSelect').value = '4';
+        document.getElementById('gradeSelect').value = '6';
+      }
+
+      function updateWeddingCountdown() {
+        const now = new Date().getTime();
+        const distance = GG_ALL_GAME_CONFIG.weddingDate - now;
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+        document.getElementById('weddingCountdown').innerHTML = `Wedding in: ${days}d ${hours}h ${minutes}m ${seconds}s`;
+        if (distance < 0) {
+          clearInterval(weddingCountdownInterval);
+          document.getElementById('weddingCountdown').innerHTML = "Wedding Day!";
+        }
+      }
+      const popupButton = document.getElementById('popupButton');
+      const popup = document.getElementById('popup');
+      const weddingDayBtn = document.getElementById('weddingDayBtn');
+      const activityBlockBtn = document.getElementById('activityBlockBtn');
+      popupButton.addEventListener('click', () => {
+        popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
+      });
+      weddingDayBtn.addEventListener('click', () => {
+        isWeddingCountdown = true;
+        clearInterval(countdownInterval);
+        updateWeddingCountdown();
+        weddingCountdownInterval = setInterval(updateWeddingCountdown, 1000);
+        document.getElementById('countdown').style.display = 'none';
+        document.getElementById('weddingCountdown').style.display = 'block';
+      });
+      activityBlockBtn.addEventListener('click', () => {
+        isWeddingCountdown = false;
+        clearInterval(weddingCountdownInterval);
+        document.getElementById('weddingCountdown').style.display = 'none';
+        document.getElementById('countdown').style.display = 'block';
+        setAlarmTo3PM();
+        popup.style.display = 'none';
+      });
+      document.getElementById('setAlarmBtn').addEventListener('click', () => {
+        if (isWeddingCountdown) {
+          clearInterval(weddingCountdownInterval);
+          document.getElementById('weddingCountdown').style.display = 'none';
+          document.getElementById('countdown').style.display = 'block';
+          isWeddingCountdown = false;
+        }
+        setAlarm();
       });
       // Set default background
       changeBackground('default');
+      // Initial wedding countdown update
+      updateWeddingCountdown();
       // Save game state
       function saveGame(gameState) {
         const saveGameEvent = {
